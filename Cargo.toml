@@ -1,0 +1,18 @@
+[package]
+name = "ethportal-api"
+version = "0.1.0"
+edition = "2021"
+description = "Definitions for various Ethereum Portal Network JSONRPC APIs"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+jsonrpsee = {version="0.16.2", features = ["macros"]}
+
+[dev-dependencies]
+ethportal-api = { path = ".", features = ["client"] }
+
+[features]
+client = ["jsonrpsee/client", "jsonrpsee/async-client"]
+server = ["jsonrpsee/server"]
