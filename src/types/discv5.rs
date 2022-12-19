@@ -1,6 +1,25 @@
 use crate::prelude::*;
+use serde_hex::{SerHex, StrictPfx};
+use std::ops::Deref;
+type RawNodeId = [u8; 32];
 
-pub type NodeId = String;
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeId(#[serde(with = "SerHex::<StrictPfx>")] RawNodeId);
+
+impl From<RawNodeId> for NodeId {
+    fn from(item: RawNodeId) -> Self {
+        NodeId(item)
+    }
+}
+
+impl Deref for NodeId {
+    type Target = RawNodeId;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub type Enr = enr::Enr<enr::CombinedKey>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,7 +50,7 @@ pub struct RoutingTableInfo {
 
 #[cfg(test)]
 mod test {
-    use crate::types::discv5::Enr;
+    use crate::types::discv5::{Enr, NodeId};
     use std::net::Ipv4Addr;
 
     #[test]
@@ -49,5 +68,17 @@ mod test {
 
         let decoded_enr = serde_json::to_string(&enr).unwrap();
         assert_eq!(decoded_enr, enr_base64);
+    }
+
+    #[test]
+    fn test_node_id_ser_de() {
+        let node_id = NodeId([
+            176, 202, 35, 254, 68, 245, 224, 61, 174, 106, 81, 237, 41, 88, 144, 15, 55, 58, 125,
+            119, 228, 39, 201, 211, 154, 95, 148, 198, 212, 185, 175, 219,
+        ]);
+
+        let node_id_string = serde_json::to_string(&node_id).unwrap();
+
+        assert_eq!(node_id, serde_json::from_str(&node_id_string).unwrap());
     }
 }

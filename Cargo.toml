@@ -9,6 +9,7 @@ license = "GPL-3.0"
 enr = {version= "0.7.0", features=["serde", "ed25519"]}
 jsonrpsee = {version="0.16.2", features = ["macros"]}
 serde = { version = "1.0.150", features = ["derive"] }
+serde-hex = "0.1.0"
 
 [dev-dependencies]
 ethportal-api = { path = ".", features = ["client"] }
