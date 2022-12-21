@@ -1,4 +1,5 @@
 mod discv5;
+mod history;
 pub mod types;
 mod web3;
 
