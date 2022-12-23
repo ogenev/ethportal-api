@@ -1,5 +1,5 @@
 use ethereum_types::H256;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest as Sha2Digest, Sha256};
 use ssz::{self, Decode, Encode};
 use ssz_derive::{Decode, Encode};
@@ -16,10 +16,10 @@ pub trait OverlayContentKey:
 }
 
 /// A content key in the history overlay network.
-#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 #[ssz(enum_behaviour = "union")]
 pub enum HistoryContentKey {
-    /// A block header.
+    /// A block header with accumulator proof.
     BlockHeader(BlockHeader),
     /// A block body.
     BlockBody(BlockBody),
@@ -27,8 +27,40 @@ pub enum HistoryContentKey {
     BlockReceipts(BlockReceipts),
     /// An epoch header accumulator.
     EpochAccumulator(EpochAccumulator),
-    /// A block header with accumulator proof.
-    BlockHeaderWithProof(BlockHeader),
+}
+
+impl Serialize for HistoryContentKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            HistoryContentKey::BlockHeader(block_header) => {
+                let ssz_bytes = block_header.as_ssz_bytes();
+                let hex_bytes = hex::encode(ssz_bytes);
+                let selector = "00";
+                serializer.serialize_str(&format!("0x{selector}{hex_bytes}"))
+            }
+            HistoryContentKey::BlockBody(block_body) => {
+                let ssz_bytes = block_body.as_ssz_bytes();
+                let hex_bytes = hex::encode(ssz_bytes);
+                let selector = "01";
+                serializer.serialize_str(&format!("0x{selector}{hex_bytes}"))
+            }
+            HistoryContentKey::BlockReceipts(block_receipt) => {
+                let ssz_bytes = block_receipt.as_ssz_bytes();
+                let hex_bytes = hex::encode(ssz_bytes);
+                let selector = "02";
+                serializer.serialize_str(&format!("0x{selector}{hex_bytes}"))
+            }
+            HistoryContentKey::EpochAccumulator(block_accumulator) => {
+                let ssz_bytes = block_accumulator.as_ssz_bytes();
+                let hex_bytes = hex::encode(ssz_bytes);
+                let selector = "03";
+                serializer.serialize_str(&format!("0x{selector}{hex_bytes}"))
+            }
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for HistoryContentKey {
@@ -55,7 +87,7 @@ impl<'de> Deserialize<'de> for HistoryContentKey {
 }
 
 /// A key for a block header.
-#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 pub struct BlockHeader {
     /// Chain identifier.
     /// Hash of the block.
@@ -63,7 +95,7 @@ pub struct BlockHeader {
 }
 
 /// A key for a block body.
-#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 pub struct BlockBody {
     /// Chain identifier.
     /// Hash of the block.
@@ -71,7 +103,7 @@ pub struct BlockBody {
 }
 
 /// A key for the transaction receipts for a block.
-#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 pub struct BlockReceipts {
     /// Chain identifier.
     /// Hash of the block.
@@ -79,7 +111,7 @@ pub struct BlockReceipts {
 }
 
 /// A key for an epoch header accumulator.
-#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 pub struct EpochAccumulator {
     pub epoch_hash: H256,
 }
@@ -126,10 +158,6 @@ impl fmt::Display for HistoryContentKey {
                     hex_encode_compact(acc.epoch_hash.as_fixed_bytes())
                 )
             }
-            Self::BlockHeaderWithProof(header) => format!(
-                "BlockHeaderWithProof {{ block_hash: {} }}",
-                hex_encode_compact(header.block_hash)
-            ),
         };
 
         write!(f, "{}", s)
@@ -263,22 +291,73 @@ mod test {
     }
 
     #[test]
-    fn test_ser_de_history_content_key() {
+    fn ser_de_block_header() {
         let content_key_json =
-            "\"0x00e008c57edef7d6a5f09ea57c6bd63f9ac99185158d33a3b111ebfb99ce04248e\"";
+            "\"0x00d1c390624d3bd4e409a61a858e5dcc5517729a9170d014a6c96530d64dd8621d\"";
         let expected_content_key = HistoryContentKey::BlockHeader(BlockHeader {
-            block_hash: [
-                224, 8, 197, 126, 222, 247, 214, 165, 240, 158, 165, 124, 107, 214, 63, 154, 201,
-                145, 133, 21, 141, 51, 163, 177, 17, 235, 251, 153, 206, 4, 36, 142,
-            ],
+            block_hash: BLOCK_HASH,
         });
 
         let content_key: HistoryContentKey = serde_json::from_str(content_key_json).unwrap();
 
         assert_eq!(content_key, expected_content_key);
-        // assert_eq!(
-        //     serde_json::to_string(&content_key).unwrap(),
-        //     content_key_json
-        // );
+        assert_eq!(
+            serde_json::to_string(&content_key).unwrap(),
+            content_key_json
+        );
+    }
+
+    #[test]
+    fn ser_de_block_body() {
+        let content_key_json =
+            "\"0x01d1c390624d3bd4e409a61a858e5dcc5517729a9170d014a6c96530d64dd8621d\"";
+        let expected_content_key = HistoryContentKey::BlockBody(BlockBody {
+            block_hash: BLOCK_HASH,
+        });
+
+        let content_key: HistoryContentKey = serde_json::from_str(content_key_json).unwrap();
+
+        assert_eq!(content_key, expected_content_key);
+        assert_eq!(
+            serde_json::to_string(&content_key).unwrap(),
+            content_key_json
+        );
+    }
+
+    #[test]
+    fn ser_de_block_receipts() {
+        let content_key_json =
+            "\"0x02d1c390624d3bd4e409a61a858e5dcc5517729a9170d014a6c96530d64dd8621d\"";
+        let expected_content_key = HistoryContentKey::BlockReceipts(BlockReceipts {
+            block_hash: BLOCK_HASH,
+        });
+
+        let content_key: HistoryContentKey = serde_json::from_str(content_key_json).unwrap();
+
+        assert_eq!(content_key, expected_content_key);
+        assert_eq!(
+            serde_json::to_string(&content_key).unwrap(),
+            content_key_json
+        );
+    }
+
+    #[test]
+    fn ser_de_epoch_accumulator() {
+        let content_key_json =
+            "\"0x03e242814b90ed3950e13aac7e56ce116540c71b41d1516605aada26c6c07cc491\"";
+        let epoch_hash =
+            hex::decode("e242814b90ed3950e13aac7e56ce116540c71b41d1516605aada26c6c07cc491")
+                .unwrap();
+        let expected_content_key = HistoryContentKey::EpochAccumulator(EpochAccumulator {
+            epoch_hash: H256::from_slice(&epoch_hash),
+        });
+
+        let content_key: HistoryContentKey = serde_json::from_str(content_key_json).unwrap();
+
+        assert_eq!(content_key, expected_content_key);
+        assert_eq!(
+            serde_json::to_string(&content_key).unwrap(),
+            content_key_json
+        );
     }
 }
