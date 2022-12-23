@@ -1,11 +1,11 @@
 use crate::prelude::*;
+use crate::types::content_key::HistoryContentKey;
 use crate::types::discv5::Enr;
 
 pub type DataRadius = ethereum_types::U256;
 pub type Distance = ethereum_types::U256;
 
 // TODO: Expand he following types to more complete structures
-pub type ContentKey = String;
 pub type ContentItem = String;
 pub type BitList = String;
 
@@ -51,6 +51,6 @@ pub struct TraceContentInfo {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaginateLocalContentInfo {
-    content_keys: Vec<ContentKey>,
+    content_keys: Vec<HistoryContentKey>,
     total_entries: u64,
 }

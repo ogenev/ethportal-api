@@ -1,8 +1,9 @@
 use crate::prelude::*;
+use crate::types::content_key::HistoryContentKey;
 use crate::types::discv5::{Enr, NodeId, NodeInfo};
 use crate::types::portal::{
-    AcceptInfo, ContentInfo, ContentItem, ContentKey, DataRadius, PaginateLocalContentInfo,
-    PongInfo, TraceContentInfo,
+    AcceptInfo, ContentInfo, ContentItem, DataRadius, PaginateLocalContentInfo, PongInfo,
+    TraceContentInfo,
 };
 
 #[cfg(any(feature = "client", feature = "server"))]
@@ -44,17 +45,24 @@ pub trait HistoryNetworkApi {
 
     /// Send FINDCONTENT message to get the content with a content key.
     #[method(name = "historyFindContent")]
-    async fn find_content(&self, enr: Enr, content_key: ContentKey) -> RpcResult<ContentInfo>;
+    async fn find_content(
+        &self,
+        enr: Enr,
+        content_key: HistoryContentKey,
+    ) -> RpcResult<ContentInfo>;
 
     /// Lookup a target content key in the network
     #[method(name = "historyRecursiveFindContent")]
-    async fn recursive_find_content(&self, content_key: ContentKey) -> RpcResult<ContentItem>;
+    async fn recursive_find_content(
+        &self,
+        content_key: HistoryContentKey,
+    ) -> RpcResult<ContentItem>;
 
     /// Lookup a target content key in the network. Return tracing info.
     #[method(name = "historyTraceRecursiveFindContent")]
     async fn trace_recursive_find_content(
         &self,
-        content_key: ContentKey,
+        content_key: HistoryContentKey,
     ) -> RpcResult<TraceContentInfo>;
 
     /// Pagination of local content keys
@@ -68,18 +76,30 @@ pub trait HistoryNetworkApi {
     /// Send the provided content item to interested peers. Clients may choose to send to some or all peers.
     /// Return the number of peers that the content was gossiped to.
     #[method(name = "historyOffer")]
-    async fn offer(&self, content_key: ContentKey, content_value: ContentItem) -> RpcResult<u32>;
+    async fn offer(
+        &self,
+        content_key: HistoryContentKey,
+        content_value: ContentItem,
+    ) -> RpcResult<u32>;
 
     /// Send OFFER with a set og content keys that this node has content available for.
     /// Return the ACCEPT response.
     #[method(name = "historySendOffer")]
-    async fn send_offer(&self, enr: Enr, content_keys: Vec<ContentKey>) -> RpcResult<AcceptInfo>;
+    async fn send_offer(
+        &self,
+        enr: Enr,
+        content_keys: Vec<HistoryContentKey>,
+    ) -> RpcResult<AcceptInfo>;
 
     /// Store content key with a content data to the local database.
     #[method(name = "historyStore")]
-    async fn store(&self, content_key: ContentKey, content_value: ContentItem) -> RpcResult<bool>;
+    async fn store(
+        &self,
+        content_key: HistoryContentKey,
+        content_value: ContentItem,
+    ) -> RpcResult<bool>;
 
     /// Get a content from the local database
     #[method(name = "historyLocalStore")]
-    async fn local_content(&self, content_key: ContentKey) -> RpcResult<ContentItem>;
+    async fn local_content(&self, content_key: HistoryContentKey) -> RpcResult<ContentItem>;
 }

@@ -1,4 +1,5 @@
 use ethereum_types::H256;
+use serde::{de, Deserialize, Deserializer, Serialize};
 use sha2::{Digest as Sha2Digest, Sha256};
 use ssz::{self, Decode, Encode};
 use ssz_derive::{Decode, Encode};
@@ -15,7 +16,7 @@ pub trait OverlayContentKey:
 }
 
 /// A content key in the history overlay network.
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
 #[ssz(enum_behaviour = "union")]
 pub enum HistoryContentKey {
     /// A block header.
@@ -30,8 +31,31 @@ pub enum HistoryContentKey {
     BlockHeaderWithProof(BlockHeader),
 }
 
+impl<'de> Deserialize<'de> for HistoryContentKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let data = String::deserialize(deserializer)?.to_lowercase();
+        let first_two = &data[..2];
+
+        if first_two != "0x" {
+            return Err(de::Error::custom(format!(
+                "Hex strings must start with 0x, but found {first_two}"
+            )));
+        }
+
+        let ssz_bytes = hex::decode(&data[2..]).map_err(de::Error::custom)?;
+
+        match HistoryContentKey::from_ssz_bytes(&ssz_bytes) {
+            Ok(content_key) => Ok(content_key),
+            Err(_) => Err(de::Error::custom("Unable to deserialize from ssz bytes!")),
+        }
+    }
+}
+
 /// A key for a block header.
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
 pub struct BlockHeader {
     /// Chain identifier.
     /// Hash of the block.
@@ -39,7 +63,7 @@ pub struct BlockHeader {
 }
 
 /// A key for a block body.
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
 pub struct BlockBody {
     /// Chain identifier.
     /// Hash of the block.
@@ -47,7 +71,7 @@ pub struct BlockBody {
 }
 
 /// A key for the transaction receipts for a block.
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
 pub struct BlockReceipts {
     /// Chain identifier.
     /// Hash of the block.
@@ -55,7 +79,7 @@ pub struct BlockReceipts {
 }
 
 /// A key for an epoch header accumulator.
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, Serialize, Eq, PartialEq)]
 pub struct EpochAccumulator {
     pub epoch_hash: H256,
 }
@@ -236,5 +260,25 @@ mod test {
         // round trip
         let decoded = HistoryContentKey::try_from(encoded_content_key).unwrap();
         assert_eq!(decoded, content_key);
+    }
+
+    #[test]
+    fn test_ser_de_history_content_key() {
+        let content_key_json =
+            "\"0x00e008c57edef7d6a5f09ea57c6bd63f9ac99185158d33a3b111ebfb99ce04248e\"";
+        let expected_content_key = HistoryContentKey::BlockHeader(BlockHeader {
+            block_hash: [
+                224, 8, 197, 126, 222, 247, 214, 165, 240, 158, 165, 124, 107, 214, 63, 154, 201,
+                145, 133, 21, 141, 51, 163, 177, 17, 235, 251, 153, 206, 4, 36, 142,
+            ],
+        });
+
+        let content_key: HistoryContentKey = serde_json::from_str(content_key_json).unwrap();
+
+        assert_eq!(content_key, expected_content_key);
+        // assert_eq!(
+        //     serde_json::to_string(&content_key).unwrap(),
+        //     content_key_json
+        // );
     }
 }
