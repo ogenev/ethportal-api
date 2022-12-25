@@ -1,4 +1,3 @@
-use bytes::BytesMut;
 use crate::types::block_header::Header;
 use crate::types::bytes::Bytes;
 use ethereum_types::{Address, H256, U256, U64};
@@ -19,7 +18,9 @@ pub struct AccessListEntry {
     pub storage_keys: Vec<H256>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RlpEncodable, RlpDecodable,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct LegacyTransaction {
     pub nonce: U256,
@@ -66,13 +67,16 @@ pub struct EIP1559Transaction {
     pub s: U256,
 }
 
-#[derive(Eq, Debug, Clone, PartialEq)]
+#[derive(Eq, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Transaction {
+    #[serde(rename = "0x0")]
     Legacy(LegacyTransaction),
+    #[serde(rename = "0x1")]
     AccessList(AccessListTransaction),
+    #[serde(rename = "0x2")]
     EIP1559(EIP1559Transaction),
 }
-
 
 #[derive(Eq, Hash, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
@@ -136,7 +140,6 @@ impl Decodable for Transaction {
 mod tests {
     use super::*;
     use hex_literal::hex;
-    use rlp::Decodable;
     use rstest::rstest;
     use serde_json::json;
 
@@ -162,52 +165,39 @@ mod tests {
     const TX19: &str = "02f87201018477359400852ad741300082520894a090e606e30bd747d4e6245a1517ebe430f0057e878791c90b4cd41280c080a0a94c2c0391828e9b9b807fa9c1259cdb8b40ce5e223370271e9a59c9db6120f4a05bfe7aa8a8cdac5d906857a5504ea4ac8e67effb04302fb2957067d9bdd84723";
     const UNCLE: &str = "f90216f90213a09f9076aeb7438dc9e3927bbcff88b1980381d8a5591a5e2323759355dd9ef0a8a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d4934794ea674fdde714fd979de3edf0f56aa9716b898ec8a0343afe56216c786a7da762b125afbab17f7087d4d91973c8882a14839faf7fd4a01dafcd8f132425d9193c8acf6f62276135cc97e6aff9018590ce10711d66684aa0f169809ffad04f682ea4ac33d7a4287609f133b0767ad873dafdfb755657f7d2b901007f6ef7b9b1b7ff57b7dd24dbfd5ddffe1c4597947b37bbfccf65a17f3df97f9bfe3cbfffdb6ff1503419ffdaea7fc5941fbaf92738affb07ca7f7fd1ffef6f29e5d2e1edff7dabfffbaf7f0f7d29e6e046f7fe056f586ff15b74f7a0e68e2ff1ff7b175db73f96f6e7d7ff88fb3e69fbb3fe3ef8febcefecf6f7deb313ca71f2c1fcefcbcbdf7bf056ee7ddb35be27df7e8f4dad7f703d9b2ffbf87f7cbcbd6d5f8f8befffbefe3aeff5f9f0fbdbffbc7bcfdbd4e3bfab1fe7bffffe53eedd785b3ff6cfec5b6df73d93f9f81a8fd66e597432f73eefbf9b59ebe936ff7a24238efaabdfef25afa7fdffbbe5bdf75badfc72efe1f97dc57e7fe9dfff5f5bdfa7873281e8bc688acd83e147ec8401c9c3808401c5a38f84627d9ae08a75732d77657374312d35a01598b74d7f90530f02c9035719061bfec794df6f5a4183aa95ba940c521472168845fe0e67ba2cd6b18517ba6d35fc";
 
-    // #[test]
-    // fn test_tx_ser_de() {
-    //     let tx = Transaction {
-    //         message: TransactionMessage::Legacy(Legacy {
-    //             chain_id: Some(2_u64.into()),
-    //             nonce: 12_u64.into(),
-    //             gas: 21000_u64.into(),
-    //             gas_price: 20_000_000_000_u64.into(),
-    //             to: Some(hex!("727fc6a68321b754475c668a6abfb6e9e71c169a").into()),
-    //             value: U256::from(10) * 1_000_000_000 * 1_000_000_000,
-    //             input: hex!("a9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000").to_vec().into(),
-    //         }),
-    //         v: 40_u64.into(),
-    //         r: hex!("be67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717").into(),
-    //         s: hex!("2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718").into(),
-    //         from: Address::repeat_byte(0xAA),
-    //         hash: H256::repeat_byte(0xBB),
-    //         transaction_index: Some(0x42.into()),
-    //         block_hash: None,
-    //         block_number: None,
-    //     };
-    //     let serialized = json!({
-    //         "type": "0x0",
-    //         "chainId": "0x2",
-    //         "nonce": "0xc",
-    //         "to": "0x727fc6a68321b754475c668a6abfb6e9e71c169a",
-    //         "gas": "0x5208",
-    //         "gasPrice":"0x4a817c800",
-    //         "value":"0x8ac7230489e80000",
-    //         "input":"0xa9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000",
-    //         "v":"0x28",
-    //         "r":"0xbe67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717",
-    //         "s":"0x2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718",
-    //         "from":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    //         "hash":"0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    //         "transactionIndex":"0x42",
-    //         "blockHash": null,
-    //         "blockNumber": null,
-    //     });
-    //
-    //     assert_eq!(serde_json::to_value(&tx).unwrap(), serialized);
-    //     assert_eq!(
-    //         serde_json::from_value::<Transaction>(serialized).unwrap(),
-    //         tx
-    //     );
-    // }
+    #[test]
+    fn test_tx_ser_de() {
+        let tx = Transaction::Legacy(LegacyTransaction{
+            nonce: 12_u64.into(),
+            gas: 21000_u64.into(),
+            gas_price: 20_000_000_000_u64.into(),
+            to: hex!("727fc6a68321b754475c668a6abfb6e9e71c169a").into(),
+            value: U256::from(10) * 1_000_000_000 * 1_000_000_000,
+            data: hex!("a9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000").to_vec().into(),
+            v: 40_u64.into(),
+            r: hex!("be67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717").into(),
+            s: hex!("2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718").into(),
+        });
+
+        let serialized = json!({
+            "type": "0x0",
+            "nonce": "0xc",
+            "to": "0x727fc6a68321b754475c668a6abfb6e9e71c169a",
+            "gas": "0x5208",
+            "gasPrice":"0x4a817c800",
+            "value":"0x8ac7230489e80000",
+            "data":"0xa9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000",
+            "v":"0x28",
+            "r":"0xbe67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717",
+            "s":"0x2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718",
+        });
+
+        assert_eq!(serde_json::to_value(&tx).unwrap(), serialized);
+        assert_eq!(
+            serde_json::from_value::<Transaction>(serialized).unwrap(),
+            tx
+        );
+    }
 
     // tx data from: https://etherscan.io/txs?block=14764013
     #[rstest]
