@@ -1,7 +1,8 @@
+use bytes::BytesMut;
 use crate::types::block_header::Header;
 use crate::types::bytes::Bytes;
 use ethereum_types::{Address, H256, U256, U64};
-use rlp::{DecoderError, Rlp, RlpStream};
+use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
 
@@ -18,92 +19,117 @@ pub struct AccessListEntry {
     pub storage_keys: Vec<H256>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
 #[serde(rename_all = "camelCase")]
-pub struct Legacy {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    chain_id: Option<U64>,
-    nonce: U64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    to: Option<Address>,
-    gas: U64,
-    gas_price: U256,
-    value: U256,
-    input: Bytes,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EIP2930 {
-    chain_id: U64,
-    nonce: U64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    to: Option<Address>,
-    gas: U64,
-    gas_price: U256,
-    value: U256,
-    input: Bytes,
-    access_list: Vec<AccessListEntry>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EIP1559 {
-    chain_id: U64,
-    nonce: U64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    to: Option<Address>,
-    gas: U64,
-    max_fee_per_gas: U256,
-    max_priority_fee_per_gas: U256,
-    value: U256,
-    input: Bytes,
-    access_list: Vec<AccessListEntry>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", deny_unknown_fields)]
-pub enum TransactionMessage {
-    #[serde(rename = "0x0")]
-    Legacy(Legacy),
-    #[serde(rename = "0x1")]
-    EIP2930(EIP2930),
-    #[serde(rename = "0x2")]
-    EIP1559(EIP1559),
-}
-
-impl rlp::Encodable for TransactionMessage {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        todo!()
-    }
-}
-
-impl rlp::Decodable for TransactionMessage {
-    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-        todo!()
-        // match *Self {
-        //     TransactionMessage::Legacy(tx, ..) => rlp::decode(tx)?,
-        //     TransactionMessage::EIP2930 { .. } => {}
-        //     TransactionMessage::EIP1559 { .. } => {}
-        // }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
-#[serde(rename_all = "camelCase")]
-pub struct Transaction {
-    #[serde(flatten)]
-    pub message: TransactionMessage,
-    /// RLP encoded representation of the transaction.
+pub struct LegacyTransaction {
+    pub nonce: U256,
+    pub gas_price: U256,
+    pub gas: U256,
+    pub to: Address,
+    pub value: U256,
+    pub data: Bytes,
     pub v: U64,
-    pub r: H256,
-    pub s: H256,
+    pub r: U256,
+    pub s: U256,
+}
 
-    pub from: Address,
-    pub hash: H256,
-    pub transaction_index: Option<U64>,
-    pub block_number: Option<U64>,
-    pub block_hash: Option<H256>,
+#[derive(Eq, Debug, Clone, PartialEq, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
+#[serde(rename_all = "camelCase")]
+pub struct AccessListTransaction {
+    pub chain_id: U256,
+    pub nonce: U256,
+    pub gas_price: U256,
+    pub gas_limit: U256,
+    pub to: Address,
+    pub value: U256,
+    pub data: Bytes,
+    pub access_list: Vec<AccessListEntry>,
+    pub y_parity: U64,
+    pub r: U256,
+    pub s: U256,
+}
+
+#[derive(Eq, Debug, Clone, PartialEq, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
+#[serde(rename_all = "camelCase")]
+pub struct EIP1559Transaction {
+    pub chain_id: U256,
+    pub nonce: U256,
+    pub max_priority_fee_per_gas: U256,
+    pub max_fee_per_gas: U256,
+    pub gas_limit: U256,
+    pub to: Address,
+    pub value: U256,
+    pub data: Bytes,
+    pub access_list: Vec<AccessListEntry>,
+    pub y_parity: U64,
+    pub r: U256,
+    pub s: U256,
+}
+
+#[derive(Eq, Debug, Clone, PartialEq)]
+pub enum Transaction {
+    Legacy(LegacyTransaction),
+    AccessList(AccessListTransaction),
+    EIP1559(EIP1559Transaction),
+}
+
+
+#[derive(Eq, Hash, Debug, Copy, Clone, PartialEq)]
+#[repr(u8)]
+/// The typed transaction ID
+pub enum TransactionId {
+    EIP1559 = 0x02,
+    AccessList = 0x01,
+    Legacy = 0x00,
+}
+
+impl TryFrom<u8> for TransactionId {
+    type Error = DecoderError;
+
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
+        match val {
+            id if id == TransactionId::EIP1559 as u8 => Ok(Self::EIP1559),
+            id if id == TransactionId::AccessList as u8 => Ok(Self::AccessList),
+            id if (id & 0x80) != 0x00 => Ok(Self::Legacy),
+            _ => Err(DecoderError::Custom(
+                "Invalid byte selector for transaction type.",
+            )),
+        }
+    }
+}
+
+impl Encodable for Transaction {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        match self {
+            Self::Legacy(tx) => {
+                tx.rlp_append(s);
+            }
+            Self::AccessList(tx) => {
+                (TransactionId::AccessList as u8).rlp_append(s);
+                tx.rlp_append(s);
+            }
+            Self::EIP1559(tx) => {
+                (TransactionId::EIP1559 as u8).rlp_append(s);
+                tx.rlp_append(s);
+            }
+        }
+    }
+}
+
+impl Decodable for Transaction {
+    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+        // at least one byte needs to be present
+        if rlp.is_empty() {
+            return Err(DecoderError::RlpIncorrectListLen);
+        }
+        let id = TransactionId::try_from(rlp.as_raw()[0])
+            .map_err(|_| DecoderError::Custom("Unknown transaction id"))?;
+        match id {
+            TransactionId::EIP1559 => Ok(Self::EIP1559(rlp::decode(&rlp.as_raw()[1..])?)),
+            TransactionId::AccessList => Ok(Self::AccessList(rlp::decode(&rlp.as_raw()[1..])?)),
+            TransactionId::Legacy => Ok(Self::Legacy(rlp::decode(rlp.as_raw())?)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -136,52 +162,52 @@ mod tests {
     const TX19: &str = "02f87201018477359400852ad741300082520894a090e606e30bd747d4e6245a1517ebe430f0057e878791c90b4cd41280c080a0a94c2c0391828e9b9b807fa9c1259cdb8b40ce5e223370271e9a59c9db6120f4a05bfe7aa8a8cdac5d906857a5504ea4ac8e67effb04302fb2957067d9bdd84723";
     const UNCLE: &str = "f90216f90213a09f9076aeb7438dc9e3927bbcff88b1980381d8a5591a5e2323759355dd9ef0a8a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d4934794ea674fdde714fd979de3edf0f56aa9716b898ec8a0343afe56216c786a7da762b125afbab17f7087d4d91973c8882a14839faf7fd4a01dafcd8f132425d9193c8acf6f62276135cc97e6aff9018590ce10711d66684aa0f169809ffad04f682ea4ac33d7a4287609f133b0767ad873dafdfb755657f7d2b901007f6ef7b9b1b7ff57b7dd24dbfd5ddffe1c4597947b37bbfccf65a17f3df97f9bfe3cbfffdb6ff1503419ffdaea7fc5941fbaf92738affb07ca7f7fd1ffef6f29e5d2e1edff7dabfffbaf7f0f7d29e6e046f7fe056f586ff15b74f7a0e68e2ff1ff7b175db73f96f6e7d7ff88fb3e69fbb3fe3ef8febcefecf6f7deb313ca71f2c1fcefcbcbdf7bf056ee7ddb35be27df7e8f4dad7f703d9b2ffbf87f7cbcbd6d5f8f8befffbefe3aeff5f9f0fbdbffbc7bcfdbd4e3bfab1fe7bffffe53eedd785b3ff6cfec5b6df73d93f9f81a8fd66e597432f73eefbf9b59ebe936ff7a24238efaabdfef25afa7fdffbbe5bdf75badfc72efe1f97dc57e7fe9dfff5f5bdfa7873281e8bc688acd83e147ec8401c9c3808401c5a38f84627d9ae08a75732d77657374312d35a01598b74d7f90530f02c9035719061bfec794df6f5a4183aa95ba940c521472168845fe0e67ba2cd6b18517ba6d35fc";
 
-    #[test]
-    fn test_tx_ser_de() {
-        let tx = Transaction {
-            message: TransactionMessage::Legacy(Legacy {
-                chain_id: Some(2_u64.into()),
-                nonce: 12_u64.into(),
-                gas: 21000_u64.into(),
-                gas_price: 20_000_000_000_u64.into(),
-                to: Some(hex!("727fc6a68321b754475c668a6abfb6e9e71c169a").into()),
-                value: U256::from(10) * 1_000_000_000 * 1_000_000_000,
-                input: hex!("a9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000").to_vec().into(),
-            }),
-            v: 40_u64.into(),
-            r: hex!("be67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717").into(),
-            s: hex!("2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718").into(),
-            from: Address::repeat_byte(0xAA),
-            hash: H256::repeat_byte(0xBB),
-            transaction_index: Some(0x42.into()),
-            block_hash: None,
-            block_number: None,
-        };
-        let serialized = json!({
-            "type": "0x0",
-            "chainId": "0x2",
-            "nonce": "0xc",
-            "to": "0x727fc6a68321b754475c668a6abfb6e9e71c169a",
-            "gas": "0x5208",
-            "gasPrice":"0x4a817c800",
-            "value":"0x8ac7230489e80000",
-            "input":"0xa9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000",
-            "v":"0x28",
-            "r":"0xbe67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717",
-            "s":"0x2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718",
-            "from":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "hash":"0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            "transactionIndex":"0x42",
-            "blockHash": null,
-            "blockNumber": null,
-        });
-
-        assert_eq!(serde_json::to_value(&tx).unwrap(), serialized);
-        assert_eq!(
-            serde_json::from_value::<Transaction>(serialized).unwrap(),
-            tx
-        );
-    }
+    // #[test]
+    // fn test_tx_ser_de() {
+    //     let tx = Transaction {
+    //         message: TransactionMessage::Legacy(Legacy {
+    //             chain_id: Some(2_u64.into()),
+    //             nonce: 12_u64.into(),
+    //             gas: 21000_u64.into(),
+    //             gas_price: 20_000_000_000_u64.into(),
+    //             to: Some(hex!("727fc6a68321b754475c668a6abfb6e9e71c169a").into()),
+    //             value: U256::from(10) * 1_000_000_000 * 1_000_000_000,
+    //             input: hex!("a9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000").to_vec().into(),
+    //         }),
+    //         v: 40_u64.into(),
+    //         r: hex!("be67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717").into(),
+    //         s: hex!("2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718").into(),
+    //         from: Address::repeat_byte(0xAA),
+    //         hash: H256::repeat_byte(0xBB),
+    //         transaction_index: Some(0x42.into()),
+    //         block_hash: None,
+    //         block_number: None,
+    //     };
+    //     let serialized = json!({
+    //         "type": "0x0",
+    //         "chainId": "0x2",
+    //         "nonce": "0xc",
+    //         "to": "0x727fc6a68321b754475c668a6abfb6e9e71c169a",
+    //         "gas": "0x5208",
+    //         "gasPrice":"0x4a817c800",
+    //         "value":"0x8ac7230489e80000",
+    //         "input":"0xa9059cbb000000000213ed0f886efd100b67c7e4ec0a85a7d20dc971600000000000000000000015af1d78b58c4000",
+    //         "v":"0x28",
+    //         "r":"0xbe67e0a07db67da8d446f76add590e54b6e92cb6b8f9835aeb67540579a27717",
+    //         "s":"0x2d690516512020171c1ec870f6ff45398cc8609250326be89915fb538e7bd718",
+    //         "from":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    //         "hash":"0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    //         "transactionIndex":"0x42",
+    //         "blockHash": null,
+    //         "blockNumber": null,
+    //     });
+    //
+    //     assert_eq!(serde_json::to_value(&tx).unwrap(), serialized);
+    //     assert_eq!(
+    //         serde_json::from_value::<Transaction>(serialized).unwrap(),
+    //         tx
+    //     );
+    // }
 
     // tx data from: https://etherscan.io/txs?block=14764013
     #[rstest]
@@ -195,15 +221,17 @@ mod tests {
     #[case(TX17, 1544975)]
     // EIP1559 w/ populated access list
     #[case(TX6, 41942)]
-    #[ignore]
     fn rlp_encode_decode_tx(#[case] tx: &str, #[case] expected_nonce: u32) {
         let tx_rlp = hex::decode(tx).unwrap();
         let tx: Transaction = rlp::decode(&tx_rlp).expect("error rlp decoding tx");
         let expected_nonce = U256::from(expected_nonce);
 
-        // assert_eq!(tx.nonce, expected_nonce);
-
-        let encoded_tx = rlp::encode(&tx).to_vec();
+        match &tx {
+            Transaction::Legacy(tx) => assert_eq!(tx.nonce, expected_nonce),
+            Transaction::AccessList(tx) => assert_eq!(tx.nonce, expected_nonce),
+            Transaction::EIP1559(tx) => assert_eq!(tx.nonce, expected_nonce),
+        }
+        let encoded_tx = rlp::encode(&tx);
         assert_eq!(hex::encode(tx_rlp), hex::encode(encoded_tx));
     }
 }
