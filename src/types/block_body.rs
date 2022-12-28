@@ -3,7 +3,7 @@ use crate::types::bytes::Bytes;
 use ethereum_types::{Address, H256, U256, U64};
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use ssz::{Decode, Encode, SszDecoderBuilder, SszEncoder};
 use ssz_types::{typenum, VariableList};
 
@@ -77,6 +77,31 @@ impl Decode for BlockBody {
             all_transactions: txs,
             uncles,
         })
+    }
+}
+
+impl Serialize for BlockBody {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let ssz_block_body = self.as_ssz_bytes();
+        serializer.serialize_str(&format!("0x{}", hex::encode(&ssz_block_body)))
+    }
+}
+
+impl<'de> Deserialize<'de> for BlockBody {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let block_body = BlockBody::from_ssz_bytes(
+            &hex::decode(s.strip_prefix("0x").unwrap_or(&s)).map_err(de::Error::custom)?,
+        )
+        .map_err(|_| de::Error::custom("Unable to ssz decode BlockBody bytes"))?;
+
+        Ok(block_body)
     }
 }
 
@@ -334,5 +359,18 @@ mod tests {
 
         let decoded = BlockBody::from_ssz_bytes(&encoded).unwrap();
         assert_eq!(block_body, decoded);
+    }
+
+    #[test]
+    fn block_body_ser_de() {
+        let block_body = get_14764013_block_body();
+        let block_body_json = json!(format!("0x{}", hex::encode(block_body.as_ssz_bytes())));
+
+        let block_body: BlockBody = serde_json::from_value(block_body_json.clone()).unwrap();
+
+        assert_eq!(
+            serde_json::to_string(&block_body_json).unwrap(),
+            serde_json::to_string(&block_body).unwrap()
+        )
     }
 }
