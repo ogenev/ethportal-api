@@ -4,11 +4,80 @@ use ethereum_types::{Address, H256, U256, U64};
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
+use ssz::{Decode, Encode, SszDecoderBuilder, SszEncoder};
+use ssz_types::{typenum, VariableList};
+
+// MAX_ENCODED_UNCLES_LENGTH = 131072
+type MaxEncodedUnclesLength = typenum::U131072;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockBody {
     pub all_transactions: Vec<Transaction>,
-    pub ssz_uncles: Vec<Header>,
+    pub uncles: Vec<Header>,
+}
+
+impl Encode for BlockBody {
+    // note: MAX_LENGTH attributes (defined in portal history spec) are not currently enforced
+    fn is_ssz_fixed_len() -> bool {
+        false
+    }
+
+    fn ssz_append(&self, buf: &mut Vec<u8>) {
+        let encoded_txs: Vec<Vec<u8>> = self
+            .all_transactions
+            .iter()
+            .map(|tx| rlp::encode(tx).to_vec())
+            .collect();
+
+        let rlp_uncles: Vec<u8> = rlp::encode_list(&self.uncles).to_vec();
+        let rlp_uncles: VariableList<u8, MaxEncodedUnclesLength> = VariableList::from(rlp_uncles);
+
+        let offset = <Vec<Vec<u8>> as Encode>::ssz_fixed_len()
+            + <VariableList<u8, typenum::U131072> as Encode>::ssz_fixed_len();
+
+        let mut encoder = SszEncoder::container(buf, offset);
+        encoder.append(&encoded_txs);
+        encoder.append(&rlp_uncles);
+        encoder.finalize();
+    }
+
+    fn ssz_bytes_len(&self) -> usize {
+        self.as_ssz_bytes().len()
+    }
+}
+
+impl Decode for BlockBody {
+    fn is_ssz_fixed_len() -> bool {
+        false
+    }
+
+    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
+        let mut builder = SszDecoderBuilder::new(bytes);
+
+        builder.register_type::<Vec<Vec<u8>>>()?;
+        builder.register_type::<Vec<u8>>()?;
+
+        let mut decoder = builder.build()?;
+
+        let encoded_txs: Vec<Vec<u8>> = decoder.decode_next()?;
+        let rlp_uncles: Vec<u8> = decoder.decode_next()?;
+
+        let txs: Vec<Transaction> = encoded_txs
+            .iter()
+            .map(|bytes| {
+                let tx: Transaction = rlp::decode(bytes).unwrap();
+                tx
+            })
+            .collect();
+
+        let uncles: VariableList<u8, MaxEncodedUnclesLength> = VariableList::from(rlp_uncles);
+        let uncles: Vec<Header> = rlp::decode_list(&uncles);
+
+        Ok(Self {
+            all_transactions: txs,
+            uncles,
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
@@ -165,6 +234,36 @@ mod tests {
     const TX19: &str = "02f87201018477359400852ad741300082520894a090e606e30bd747d4e6245a1517ebe430f0057e878791c90b4cd41280c080a0a94c2c0391828e9b9b807fa9c1259cdb8b40ce5e223370271e9a59c9db6120f4a05bfe7aa8a8cdac5d906857a5504ea4ac8e67effb04302fb2957067d9bdd84723";
     const UNCLE: &str = "f90216f90213a09f9076aeb7438dc9e3927bbcff88b1980381d8a5591a5e2323759355dd9ef0a8a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d4934794ea674fdde714fd979de3edf0f56aa9716b898ec8a0343afe56216c786a7da762b125afbab17f7087d4d91973c8882a14839faf7fd4a01dafcd8f132425d9193c8acf6f62276135cc97e6aff9018590ce10711d66684aa0f169809ffad04f682ea4ac33d7a4287609f133b0767ad873dafdfb755657f7d2b901007f6ef7b9b1b7ff57b7dd24dbfd5ddffe1c4597947b37bbfccf65a17f3df97f9bfe3cbfffdb6ff1503419ffdaea7fc5941fbaf92738affb07ca7f7fd1ffef6f29e5d2e1edff7dabfffbaf7f0f7d29e6e046f7fe056f586ff15b74f7a0e68e2ff1ff7b175db73f96f6e7d7ff88fb3e69fbb3fe3ef8febcefecf6f7deb313ca71f2c1fcefcbcbdf7bf056ee7ddb35be27df7e8f4dad7f703d9b2ffbf87f7cbcbd6d5f8f8befffbefe3aeff5f9f0fbdbffbc7bcfdbd4e3bfab1fe7bffffe53eedd785b3ff6cfec5b6df73d93f9f81a8fd66e597432f73eefbf9b59ebe936ff7a24238efaabdfef25afa7fdffbbe5bdf75badfc72efe1f97dc57e7fe9dfff5f5bdfa7873281e8bc688acd83e147ec8401c9c3808401c5a38f84627d9ae08a75732d77657374312d35a01598b74d7f90530f02c9035719061bfec794df6f5a4183aa95ba940c521472168845fe0e67ba2cd6b18517ba6d35fc";
 
+    fn get_14764013_block_body() -> BlockBody {
+        let txs: Vec<Transaction> = vec![
+            rlp::decode(&hex::decode(TX1).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX2).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX3).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX4).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX5).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX6).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX7).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX8).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX9).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX10).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX11).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX12).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX13).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX14).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX15).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX16).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX17).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX18).unwrap()).unwrap(),
+            rlp::decode(&hex::decode(TX19).unwrap()).unwrap(),
+        ];
+        let uncles_rlp = &hex::decode(UNCLE).unwrap();
+        let uncles: Vec<Header> = rlp::decode_list(uncles_rlp);
+        BlockBody {
+            all_transactions: txs,
+            uncles,
+        }
+    }
+
     #[test]
     fn test_tx_ser_de() {
         let tx = Transaction::Legacy(LegacyTransaction{
@@ -223,5 +322,17 @@ mod tests {
         }
         let encoded_tx = rlp::encode(&tx);
         assert_eq!(hex::encode(tx_rlp), hex::encode(encoded_tx));
+    }
+
+    #[test]
+    fn block_body_ssz_encode_decode() {
+        let block_body = get_14764013_block_body();
+        let encoded = block_body.as_ssz_bytes();
+        let expected: Vec<u8> = std::fs::read("./src/assets/test/block_body_14764013.bin").unwrap();
+
+        assert_eq!(hex::encode(&encoded), hex::encode(expected));
+
+        let decoded = BlockBody::from_ssz_bytes(&encoded).unwrap();
+        assert_eq!(block_body, decoded);
     }
 }
