@@ -1,11 +1,13 @@
 use crate::types::block_header::Header;
 use crate::types::bytes::Bytes;
+use eth_trie::{EthTrie, MemoryDB, Trie, TrieError};
 use ethereum_types::{Address, H256, U256, U64};
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use ssz::{Decode, Encode, SszDecoderBuilder, SszEncoder};
 use ssz_types::{typenum, VariableList};
+use std::sync::Arc;
 
 // MAX_ENCODED_UNCLES_LENGTH = 131072
 type MaxEncodedUnclesLength = typenum::U131072;
@@ -14,6 +16,32 @@ type MaxEncodedUnclesLength = typenum::U131072;
 pub struct BlockBody {
     pub all_transactions: Vec<Transaction>,
     pub uncles: Vec<Header>,
+}
+
+impl BlockBody {
+    pub fn transactions_root(&self) -> Result<H256, TrieError> {
+        let memdb = Arc::new(MemoryDB::new(true));
+        let mut trie = EthTrie::new(memdb);
+
+        // Insert txs into tx tree
+        for (index, tx) in self.all_transactions.iter().enumerate() {
+            let path = rlp::encode(&index).freeze().to_vec();
+            let encoded_tx = rlp::encode(tx);
+            trie.insert(&path, &encoded_tx)?
+        }
+
+        trie.root_hash()
+    }
+
+    pub fn uncles_root(&self) -> keccak_hash::H256 {
+        // generate rlp encoded list of uncles
+        let mut stream = RlpStream::new();
+        stream.append_list(&self.uncles);
+        let uncles_rlp = stream.out().freeze();
+
+        // hash rlp uncles
+        keccak_hash::keccak(&uncles_rlp)
+    }
 }
 
 impl Encode for BlockBody {
@@ -372,5 +400,61 @@ mod tests {
             serde_json::to_string(&block_body_json).unwrap(),
             serde_json::to_string(&block_body).unwrap()
         )
+    }
+
+    #[test]
+    fn block_body_validates_uncles_root() {
+        let block_body = get_14764013_block_body();
+        let expected_uncles_root =
+            "58a694212e0416353a4d3865ccf475496b55af3a3d3b002057000741af973191".to_owned();
+        assert_eq!(hex::encode(block_body.uncles_root()), expected_uncles_root);
+    }
+
+    #[test]
+    fn block_body_roots_invalidates_uncles_root() {
+        let block_body = get_14764013_block_body();
+        // invalid uncles
+        let uncles = vec![block_body.uncles[0].clone(), block_body.uncles[0].clone()];
+
+        let invalid_block_body = BlockBody {
+            all_transactions: block_body.all_transactions,
+            uncles,
+        };
+        let expected_uncles_root =
+            "58a694212e0416353a4d3865ccf475496b55af3a3d3b002057000741af973191".to_owned();
+
+        assert_ne!(
+            expected_uncles_root,
+            hex::encode(invalid_block_body.uncles_root())
+        );
+    }
+
+    #[test]
+    fn block_body_validates_transactions_root() {
+        let block_body = get_14764013_block_body();
+        let expected_tx_root =
+            "18a2978fc62cd1a23e90de920af68c0c3af3330327927cda4c005faccefb5ce7".to_owned();
+        assert_eq!(
+            hex::encode(block_body.transactions_root().unwrap()),
+            expected_tx_root
+        );
+    }
+
+    #[test]
+    fn block_body_roots_invalidates_transactions_root() {
+        let mut block_body = get_14764013_block_body();
+        // invalid txs
+        block_body.all_transactions.truncate(1);
+        let invalid_block_body = BlockBody {
+            all_transactions: block_body.all_transactions,
+            uncles: block_body.uncles,
+        };
+
+        let expected_tx_root =
+            "18a2978fc62cd1a23e90de920af68c0c3af3330327927cda4c005faccefb5ce7".to_owned();
+        assert_ne!(
+            expected_tx_root,
+            hex::encode(invalid_block_body.transactions_root().unwrap())
+        );
     }
 }
