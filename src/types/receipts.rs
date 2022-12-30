@@ -14,11 +14,11 @@ const MAX_TRANSACTION_COUNT: usize = 16384;
 
 /// Represents the `Receipts` datatype used by the chain history wire protocol
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Receipts {
+pub struct BlockReceipts {
     pub receipt_list: Vec<Receipt>,
 }
 
-impl Receipts {
+impl BlockReceipts {
     pub fn root(&self) -> Result<H256, TrieError> {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut trie = EthTrie::new(memdb);
@@ -34,7 +34,7 @@ impl Receipts {
     }
 }
 
-impl Encode for Receipts {
+impl Encode for BlockReceipts {
     // note: MAX_LENGTH attributes (defined in portal history spec) are not currently enforced
     fn is_ssz_fixed_len() -> bool {
         false
@@ -59,7 +59,7 @@ impl Encode for Receipts {
     }
 }
 
-impl Decode for Receipts {
+impl Decode for BlockReceipts {
     fn is_ssz_fixed_len() -> bool {
         false
     }
@@ -77,7 +77,7 @@ impl Decode for Receipts {
     }
 }
 
-impl Serialize for Receipts {
+impl Serialize for BlockReceipts {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -87,13 +87,13 @@ impl Serialize for Receipts {
     }
 }
 
-impl<'de> Deserialize<'de> for Receipts {
+impl<'de> Deserialize<'de> for BlockReceipts {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let receipts = Receipts::from_ssz_bytes(
+        let receipts = BlockReceipts::from_ssz_bytes(
             &hex::decode(s.strip_prefix("0x").unwrap_or(&s)).map_err(de::Error::custom)?,
         )
         .map_err(|_| de::Error::custom("Unable to ssz decode Receipts bytes"))?;
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn calculate_receipts_root() {
-        let receipts = Receipts {
+        let receipts = BlockReceipts {
             receipt_list: vec![
                 Receipt::decode(&hex::decode(RECEIPT_0).unwrap()).unwrap(),
                 Receipt::decode(&hex::decode(RECEIPT_1).unwrap()).unwrap(),
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn ssz_encode_decode_receipts() {
-        let receipts = Receipts {
+        let receipts = BlockReceipts {
             receipt_list: vec![
                 Receipt::decode(&hex::decode(RECEIPT_0).unwrap()).unwrap(),
                 Receipt::decode(&hex::decode(RECEIPT_1).unwrap()).unwrap(),
@@ -360,13 +360,13 @@ mod tests {
         let expected: Vec<u8> = std::fs::read("./src/assets/test/receipts_14764013.bin").unwrap();
         assert_eq!(hex::encode(&encoded), hex::encode(expected));
 
-        let decoded = Receipts::from_ssz_bytes(&encoded).unwrap();
+        let decoded = BlockReceipts::from_ssz_bytes(&encoded).unwrap();
         assert_eq!(receipts, decoded);
     }
 
     #[test]
     fn receipts_ser_de() {
-        let receipts = Receipts {
+        let receipts = BlockReceipts {
             receipt_list: vec![
                 Receipt::decode(&hex::decode(RECEIPT_0).unwrap()).unwrap(),
                 Receipt::decode(&hex::decode(RECEIPT_1).unwrap()).unwrap(),
@@ -392,7 +392,7 @@ mod tests {
 
         let receipts_json = json!(format!("0x{}", hex::encode(receipts.as_ssz_bytes())));
 
-        let receipts: Receipts = serde_json::from_value(receipts_json.clone()).unwrap();
+        let receipts: BlockReceipts = serde_json::from_value(receipts_json.clone()).unwrap();
 
         assert_eq!(
             serde_json::to_string(&receipts_json).unwrap(),
