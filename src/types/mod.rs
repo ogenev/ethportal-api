@@ -1,3 +1,4 @@
+pub mod accumulator;
 pub mod block_body;
 pub mod block_header;
 pub mod bytes;
