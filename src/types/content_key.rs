@@ -20,13 +20,13 @@ pub trait OverlayContentKey:
 #[ssz(enum_behaviour = "union")]
 pub enum HistoryContentKey {
     /// A block header with accumulator proof.
-    BlockHeader(BlockHeader),
+    BlockHeader(BlockHeaderKey),
     /// A block body.
-    BlockBody(BlockBody),
+    BlockBody(BlockBodyKey),
     /// The transaction receipts for a block.
-    BlockReceipts(BlockReceipts),
+    BlockReceipts(BlockReceiptsKey),
     /// An epoch header accumulator.
-    EpochAccumulator(EpochAccumulator),
+    EpochAccumulator(EpochAccumulatorKey),
 }
 
 impl Serialize for HistoryContentKey {
@@ -88,7 +88,7 @@ impl<'de> Deserialize<'de> for HistoryContentKey {
 
 /// A key for a block header.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct BlockHeader {
+pub struct BlockHeaderKey {
     /// Chain identifier.
     /// Hash of the block.
     pub block_hash: [u8; 32],
@@ -96,7 +96,7 @@ pub struct BlockHeader {
 
 /// A key for a block body.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct BlockBody {
+pub struct BlockBodyKey {
     /// Chain identifier.
     /// Hash of the block.
     pub block_hash: [u8; 32],
@@ -104,7 +104,7 @@ pub struct BlockBody {
 
 /// A key for the transaction receipts for a block.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct BlockReceipts {
+pub struct BlockReceiptsKey {
     /// Chain identifier.
     /// Hash of the block.
     pub block_hash: [u8; 32],
@@ -112,7 +112,7 @@ pub struct BlockReceipts {
 
 /// A key for an epoch header accumulator.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-pub struct EpochAccumulator {
+pub struct EpochAccumulatorKey {
     pub epoch_hash: H256,
 }
 
@@ -209,7 +209,7 @@ mod test {
             0x6e, 0x38, 0x95, 0xfe,
         ];
 
-        let header = BlockHeader {
+        let header = BlockHeaderKey {
             block_hash: BLOCK_HASH,
         };
 
@@ -231,7 +231,7 @@ mod test {
             0x4a, 0x26, 0x78, 0x6b,
         ];
 
-        let body = BlockBody {
+        let body = BlockBodyKey {
             block_hash: BLOCK_HASH,
         };
 
@@ -253,7 +253,7 @@ mod test {
             0x24, 0x7c, 0x04, 0xa4,
         ];
 
-        let receipts = BlockReceipts {
+        let receipts = BlockReceiptsKey {
             block_hash: BLOCK_HASH,
         };
 
@@ -277,7 +277,7 @@ mod test {
             &hex::decode("9fb2175e76c6989e0fdac3ee10c40d2a81eb176af32e1c16193e3904fe56896e")
                 .unwrap();
 
-        let content_key = HistoryContentKey::EpochAccumulator(EpochAccumulator {
+        let content_key = HistoryContentKey::EpochAccumulator(EpochAccumulatorKey {
             epoch_hash: H256::from_slice(&epoch_hash),
         });
         assert_eq!(&content_key.content_id().to_vec(), expected_content_id);
@@ -294,7 +294,7 @@ mod test {
     fn ser_de_block_header() {
         let content_key_json =
             "\"0x00d1c390624d3bd4e409a61a858e5dcc5517729a9170d014a6c96530d64dd8621d\"";
-        let expected_content_key = HistoryContentKey::BlockHeader(BlockHeader {
+        let expected_content_key = HistoryContentKey::BlockHeader(BlockHeaderKey {
             block_hash: BLOCK_HASH,
         });
 
@@ -311,7 +311,7 @@ mod test {
     fn ser_de_block_body() {
         let content_key_json =
             "\"0x01d1c390624d3bd4e409a61a858e5dcc5517729a9170d014a6c96530d64dd8621d\"";
-        let expected_content_key = HistoryContentKey::BlockBody(BlockBody {
+        let expected_content_key = HistoryContentKey::BlockBody(BlockBodyKey {
             block_hash: BLOCK_HASH,
         });
 
@@ -328,7 +328,7 @@ mod test {
     fn ser_de_block_receipts() {
         let content_key_json =
             "\"0x02d1c390624d3bd4e409a61a858e5dcc5517729a9170d014a6c96530d64dd8621d\"";
-        let expected_content_key = HistoryContentKey::BlockReceipts(BlockReceipts {
+        let expected_content_key = HistoryContentKey::BlockReceipts(BlockReceiptsKey {
             block_hash: BLOCK_HASH,
         });
 
@@ -348,7 +348,7 @@ mod test {
         let epoch_hash =
             hex::decode("e242814b90ed3950e13aac7e56ce116540c71b41d1516605aada26c6c07cc491")
                 .unwrap();
-        let expected_content_key = HistoryContentKey::EpochAccumulator(EpochAccumulator {
+        let expected_content_key = HistoryContentKey::EpochAccumulator(EpochAccumulatorKey {
             epoch_hash: H256::from_slice(&epoch_hash),
         });
 
