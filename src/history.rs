@@ -1,9 +1,9 @@
 use crate::prelude::*;
+use crate::types::content_item::HistoryContentItem;
 use crate::types::content_key::HistoryContentKey;
 use crate::types::discv5::{Enr, NodeId, NodeInfo};
 use crate::types::portal::{
-    AcceptInfo, ContentInfo, ContentItem, DataRadius, PaginateLocalContentInfo, PongInfo,
-    TraceContentInfo,
+    AcceptInfo, ContentInfo, DataRadius, PaginateLocalContentInfo, PongInfo, TraceContentInfo,
 };
 
 #[cfg(any(feature = "client", feature = "server"))]
@@ -56,7 +56,7 @@ pub trait HistoryNetworkApi {
     async fn recursive_find_content(
         &self,
         content_key: HistoryContentKey,
-    ) -> RpcResult<ContentItem>;
+    ) -> RpcResult<HistoryContentItem>;
 
     /// Lookup a target content key in the network. Return tracing info.
     #[method(name = "historyTraceRecursiveFindContent")]
@@ -79,7 +79,7 @@ pub trait HistoryNetworkApi {
     async fn offer(
         &self,
         content_key: HistoryContentKey,
-        content_value: ContentItem,
+        content_value: HistoryContentItem,
     ) -> RpcResult<u32>;
 
     /// Send OFFER with a set og content keys that this node has content available for.
@@ -96,10 +96,10 @@ pub trait HistoryNetworkApi {
     async fn store(
         &self,
         content_key: HistoryContentKey,
-        content_value: ContentItem,
+        content_value: HistoryContentItem,
     ) -> RpcResult<bool>;
 
     /// Get a content from the local database
     #[method(name = "historyLocalStore")]
-    async fn local_content(&self, content_key: HistoryContentKey) -> RpcResult<ContentItem>;
+    async fn local_content(&self, content_key: HistoryContentKey) -> RpcResult<HistoryContentItem>;
 }
