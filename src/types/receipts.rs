@@ -12,7 +12,7 @@ use std::sync::Arc;
 // 2 ^ 14
 const MAX_TRANSACTION_COUNT: usize = 16384;
 
-/// Represents the `Receipts` datatype used by the chain history wire protocol
+/// Represents the `Receipts` content type used by portal history network
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockReceipts {
     pub receipt_list: Vec<Receipt>,

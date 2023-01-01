@@ -220,6 +220,7 @@ impl<'de> Deserialize<'de> for BlockHeader {
     }
 }
 
+/// A block header
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Header {

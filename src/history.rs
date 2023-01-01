@@ -1,18 +1,19 @@
 use crate::prelude::*;
 use crate::types::content_item::HistoryContentItem;
 use crate::types::content_key::HistoryContentKey;
-use crate::types::discv5::{Enr, NodeId, NodeInfo};
+use crate::types::discv5::{Enr, NodeId, RoutingTableInfo};
 use crate::types::portal::{
     AcceptInfo, ContentInfo, DataRadius, PaginateLocalContentInfo, PongInfo, TraceContentInfo,
 };
 
+/// Portal History JSON-RPC endpoints
 #[cfg(any(feature = "client", feature = "server"))]
 #[cfg_attr(feature = "client", rpc(client, namespace = "portal"))]
 #[cfg_attr(feature = "server", rpc(server, namespace = "portal"))]
 pub trait HistoryNetworkApi {
     /// Returns meta information about overlay routing table.
     #[method(name = "historyRoutingTableInfo")]
-    async fn routing_table_info(&self) -> RpcResult<NodeInfo>;
+    async fn routing_table_info(&self) -> RpcResult<RoutingTableInfo>;
 
     /// Write an Ethereum Node Record to the overlay routing table.
     #[method(name = "historyAddEnr")]
@@ -100,6 +101,6 @@ pub trait HistoryNetworkApi {
     ) -> RpcResult<bool>;
 
     /// Get a content from the local database
-    #[method(name = "historyLocalStore")]
+    #[method(name = "historyLocalContent")]
     async fn local_content(&self, content_key: HistoryContentKey) -> RpcResult<HistoryContentItem>;
 }

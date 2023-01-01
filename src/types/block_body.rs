@@ -12,6 +12,7 @@ use std::sync::Arc;
 // MAX_ENCODED_UNCLES_LENGTH = 131072
 type MaxEncodedUnclesLength = typenum::U131072;
 
+/// BlockBody portal history content type
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockBody {
     pub all_transactions: Vec<Transaction>,
@@ -189,6 +190,7 @@ pub struct EIP1559Transaction {
     pub s: U256,
 }
 
+/// Type representing an ethereum transaction
 #[derive(Eq, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Transaction {

@@ -3,6 +3,8 @@ use serde_hex::{SerHex, StrictPfx};
 use std::ops::Deref;
 type RawNodeId = [u8; 32];
 
+/// Discv5 NodeId
+// TODO: Wrap this type over discv5::NodeId type
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeId(#[serde(with = "SerHex::<StrictPfx>")] RawNodeId);
 
@@ -20,20 +22,24 @@ impl Deref for NodeId {
     }
 }
 
+/// Node ENR
 pub type Enr = enr::Enr<enr::CombinedKey>;
 
+/// Discv5 bucket
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bucket {
     #[serde(flatten)]
     node_ids: Vec<NodeId>,
 }
 
+/// Represents a discv5 kbuckets table
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KBucketsTable {
     #[serde(flatten)]
     buckets: Vec<Bucket>,
 }
 
+/// Discv5 node information
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeInfo {
@@ -41,6 +47,7 @@ pub struct NodeInfo {
     node_id: NodeId,
 }
 
+/// Node routing table info
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoutingTableInfo {

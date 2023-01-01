@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+/// Web3 JSON-RPC endpoints
 #[cfg(any(feature = "client", feature = "server"))]
 #[cfg_attr(feature = "client", rpc(client, namespace = "web3"))]
 #[cfg_attr(feature = "server", rpc(server, namespace = "web3"))]
