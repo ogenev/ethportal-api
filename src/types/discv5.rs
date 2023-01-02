@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
 use serde_hex::{SerHex, StrictPfx};
 use std::ops::Deref;
 type RawNodeId = [u8; 32];

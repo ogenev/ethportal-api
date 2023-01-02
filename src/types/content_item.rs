@@ -1,7 +1,9 @@
-use crate::types::accumulator::EpochAccumulator;
-use crate::types::block_body::BlockBody;
-use crate::types::block_header::{BlockHeader, BlockHeaderWithProof};
-use crate::types::receipts::BlockReceipts;
+use crate::types::{
+    accumulator::EpochAccumulator,
+    block_body::BlockBody,
+    block_header::{BlockHeader, BlockHeaderWithProof},
+    receipts::BlockReceipts,
+};
 use serde::{Deserialize, Serialize};
 
 /// Portal History content items.

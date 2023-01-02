@@ -1,10 +1,12 @@
-use crate::prelude::*;
-use crate::types::content_item::HistoryContentItem;
-use crate::types::content_key::HistoryContentKey;
-use crate::types::discv5::{Enr, NodeId, RoutingTableInfo};
-use crate::types::portal::{
-    AcceptInfo, ContentInfo, DataRadius, PaginateLocalContentInfo, PongInfo, TraceContentInfo,
+use crate::types::{
+    content_item::HistoryContentItem,
+    content_key::HistoryContentKey,
+    discv5::{Enr, NodeId, RoutingTableInfo},
+    portal::{
+        AcceptInfo, ContentInfo, DataRadius, PaginateLocalContentInfo, PongInfo, TraceContentInfo,
+    },
 };
+use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 
 /// Portal History JSON-RPC endpoints
 #[cfg(any(feature = "client", feature = "server"))]

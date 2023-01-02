@@ -1,4 +1,5 @@
-use crate::prelude::*;
+use jsonrpsee::core::RpcResult;
+use jsonrpsee::proc_macros::rpc;
 
 /// Web3 JSON-RPC endpoints
 #[cfg(any(feature = "client", feature = "server"))]

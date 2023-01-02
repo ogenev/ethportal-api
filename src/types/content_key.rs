@@ -160,7 +160,7 @@ impl fmt::Display for HistoryContentKey {
             }
         };
 
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

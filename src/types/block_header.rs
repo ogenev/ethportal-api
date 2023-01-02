@@ -24,7 +24,7 @@ impl Serialize for BlockHeaderWithProof {
         S: Serializer,
     {
         let ssz_block_header_with_proof = &self.as_ssz_bytes();
-        serializer.serialize_str(&format!("0x{}", hex::encode(&ssz_block_header_with_proof)))
+        serializer.serialize_str(&format!("0x{}", hex::encode(ssz_block_header_with_proof)))
     }
 }
 

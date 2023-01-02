@@ -28,7 +28,7 @@ impl Serialize for EpochAccumulator {
         S: Serializer,
     {
         let ssz_epoch_acc = &self.0.as_ssz_bytes();
-        serializer.serialize_str(&format!("0x{}", hex::encode(&ssz_epoch_acc)))
+        serializer.serialize_str(&format!("0x{}", hex::encode(ssz_epoch_acc)))
     }
 }
 
@@ -108,7 +108,7 @@ mod test {
     fn ssz_serde_encode_decode_ultralight_epoch_accumulator() {
         let epoch_acc_hex =
             fs::read_to_string("./src/assets/test/ultralight_testEpoch.hex").unwrap();
-        let epoch_acc_ssz = hex::decode(&epoch_acc_hex.strip_prefix("0x").unwrap()).unwrap();
+        let epoch_acc_ssz = hex::decode(epoch_acc_hex.strip_prefix("0x").unwrap()).unwrap();
         let epoch_acc = EpochAccumulator::from_ssz_bytes(&epoch_acc_ssz).unwrap();
         assert_eq!(epoch_acc.len(), EPOCH_SIZE);
         assert_eq!(epoch_acc.as_ssz_bytes(), epoch_acc_ssz);
