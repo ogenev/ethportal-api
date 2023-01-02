@@ -1,6 +1,7 @@
-use crate::prelude::*;
-use crate::types::discv5::{Enr, NodeId, NodeInfo};
+use crate::types::discv5::{Enr, NodeId, NodeInfo, RoutingTableInfo};
+use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 
+/// Discv5 JSON-RPC endpoints
 #[cfg(any(feature = "client", feature = "server"))]
 #[cfg_attr(feature = "client", rpc(client, namespace = "discv5"))]
 #[cfg_attr(feature = "server", rpc(server, namespace = "discv5"))]
@@ -19,7 +20,7 @@ pub trait Discv5Api {
 
     /// Returns meta information about discv5 routing table.
     #[method(name = "routingTableInfo")]
-    async fn routing_table_info(&self) -> RpcResult<NodeInfo>;
+    async fn routing_table_info(&self) -> RpcResult<RoutingTableInfo>;
 
     /// Write an Ethereum Node Record to the routing table.
     #[method(name = "addEnr")]

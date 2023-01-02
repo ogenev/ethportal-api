@@ -1,18 +1,19 @@
-use crate::types::block_body::TransactionId;
-use crate::types::log::TransactionLog;
+use crate::types::{block_body::TransactionId, log::TransactionLog};
 use eth_trie::{EthTrie, MemoryDB, Trie, TrieError};
 use ethereum_types::{Bloom, H256, U256};
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use ssz::{Decode, Encode};
 use ssz_types::{typenum, VariableList};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 // 2 ^ 14
 const MAX_TRANSACTION_COUNT: usize = 16384;
 
-/// Represents the `Receipts` datatype used by the chain history wire protocol
+/// Represents the `Receipts` content type used by portal history network
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockReceipts {
     pub receipt_list: Vec<Receipt>,
@@ -83,7 +84,7 @@ impl Serialize for BlockReceipts {
         S: Serializer,
     {
         let ssz_receipts = self.as_ssz_bytes();
-        serializer.serialize_str(&format!("0x{}", hex::encode(&ssz_receipts)))
+        serializer.serialize_str(&format!("0x{}", hex::encode(ssz_receipts)))
     }
 }
 

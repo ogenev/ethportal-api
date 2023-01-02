@@ -1,13 +1,12 @@
-use crate::prelude::*;
-use crate::types::content_item::HistoryContentItem;
-use crate::types::content_key::HistoryContentKey;
-use crate::types::discv5::Enr;
+use crate::types::{content_item::HistoryContentItem, content_key::HistoryContentKey, discv5::Enr};
+use serde::{Deserialize, Serialize};
 
 pub type DataRadius = ethereum_types::U256;
 pub type Distance = ethereum_types::U256;
 
 pub type BitList = String;
 
+/// Part of a TraceRecursiveFindContent response
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeInfo {
@@ -15,6 +14,7 @@ pub struct NodeInfo {
     distance: Distance,
 }
 
+/// Response for Ping endpoint
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PongInfo {
@@ -22,6 +22,7 @@ pub struct PongInfo {
     data_radius: DataRadius,
 }
 
+/// Response for FindContent endpoint
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ContentInfo {
@@ -33,6 +34,7 @@ pub enum ContentInfo {
     Enrs { enrs: Vec<Enr> },
 }
 
+/// Response for Offer endpoint
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AcceptInfo {
@@ -40,6 +42,7 @@ pub struct AcceptInfo {
     content_keys: BitList,
 }
 
+/// Response for TraceRecursiveFindContent endpoint
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceContentInfo {
@@ -47,6 +50,7 @@ pub struct TraceContentInfo {
     route: Vec<NodeInfo>,
 }
 
+/// Response for PaginateLocalContentKeys endpoint
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaginateLocalContentInfo {

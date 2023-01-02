@@ -1,0 +1,37 @@
+version: 2.1
+orbs:
+  rust: circleci/rust@1.6.0
+jobs:
+  lint-build-test:
+    description: |
+      Check linting with Clippy and rustfmt, build the crate, and run tests.
+    executor:
+      name: rust/default
+      tag: 1.65.0
+    environment:
+      RUSTFLAGS: '-D warnings'
+      RUST_LOG: 'debug'
+    steps:
+      - checkout
+      - run:
+          name: Install rustfmt
+          command: rustup component add rustfmt
+      - run:
+          name: Run rustfmt
+          command: cargo fmt --all -- --check
+      - run:
+          name: Install Clippy
+          command: rustup component add clippy
+      - run:
+          name: Run Clippy
+          command: cargo clippy --all --all-targets --all-features --no-deps -- --deny warnings
+      - run:
+          name: Build
+          command: cargo build --all-features
+      - run:
+          name: Test
+          command: cargo test --all-features -- --nocapture
+workflows:
+  merge-test:
+    jobs:
+      - lint-build-test

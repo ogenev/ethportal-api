@@ -1,5 +1,4 @@
-use crate::types::block_header::Header;
-use crate::types::bytes::Bytes;
+use crate::types::{block_header::Header, bytes::Bytes};
 use eth_trie::{EthTrie, MemoryDB, Trie, TrieError};
 use ethereum_types::{Address, H256, U256, U64};
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
@@ -12,6 +11,7 @@ use std::sync::Arc;
 // MAX_ENCODED_UNCLES_LENGTH = 131072
 type MaxEncodedUnclesLength = typenum::U131072;
 
+/// BlockBody portal history content type
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockBody {
     pub all_transactions: Vec<Transaction>,
@@ -114,7 +114,7 @@ impl Serialize for BlockBody {
         S: Serializer,
     {
         let ssz_block_body = self.as_ssz_bytes();
-        serializer.serialize_str(&format!("0x{}", hex::encode(&ssz_block_body)))
+        serializer.serialize_str(&format!("0x{}", hex::encode(ssz_block_body)))
     }
 }
 
@@ -189,6 +189,7 @@ pub struct EIP1559Transaction {
     pub s: U256,
 }
 
+/// Type representing an ethereum transaction
 #[derive(Eq, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Transaction {
