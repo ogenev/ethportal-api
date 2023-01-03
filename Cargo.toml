@@ -26,10 +26,10 @@ serde-hex = "0.1.0"
 sha2 = "0.10.1"
 
 [dev-dependencies]
-ethportal-api = { path = ".", features = ["client"] }
 rstest = "0.16.0"
 serde_json = "1.0.89"
 
 [features]
+default = ["client"]
 client = ["jsonrpsee/client", "jsonrpsee/async-client"]
 server = ["jsonrpsee/server"]
