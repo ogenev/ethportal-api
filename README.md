@@ -1,4 +1,8 @@
 # ethportal-api
+
+> **Warning:**
+> Depreciated in favor of https://github.com/ethereum/trin/tree/master/ethportal-api .
+
 This crate contains definitions for various Portal Network JSON-RPC APIs using [jsonrpsee](https://github.com/paritytech/jsonrpsee) framework.
 
 ## Client usage example
